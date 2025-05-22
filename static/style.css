@@ -1,0 +1,82 @@
+body {
+    font-family: sans-serif;
+    margin: 20px;
+    background-color: #f4f4f4; /* Adding a light background color */
+    color: #333; /* Default text color */
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+textarea {
+    width: 100%; /* Responsive width */
+    min-height: 120px; /* Slightly increased min-height */
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    font-family: inherit; /* Inherit font from body */
+}
+
+button {
+    padding: 10px 15px;
+    background-color: #007bff; /* Standard blue */
+    color: white;
+    border: none;
+    border-radius: 5px; /* Added for softer edges */
+    cursor: pointer;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    font-size: 16px; /* Explicit font size */
+}
+
+button:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+}
+
+audio {
+    width: 100%; /* Responsive width */
+    margin-top: 20px;
+}
+
+/* Adding some styles for file input for consistency */
+input[type="file"] {
+    margin-bottom: 10px;
+    margin-top: 5px; /* Added for spacing */
+    display: block; /* Make it a block element for better spacing */
+}
+
+/* General container for better centering and max-width */
+.container {
+    max-width: 600px; /* Max width for the main content area */
+    margin: auto; /* Center the container */
+    padding: 20px;
+    background-color: #fff; /* White background for the content area */
+    box-shadow: 0 0 10px rgba(0,0,0,0.1); /* Subtle shadow for depth */
+    border-radius: 8px; /* Rounded corners for the container */
+}
+
+/* Apply container to body or a specific div if structure changes */
+/* For now, assuming direct children of body or we'd wrap content in index.html */
+/* Let's modify index.html to use this container. */
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    body {
+        margin: 10px;
+    }
+    .container {
+        margin: 10px;
+        padding: 15px;
+    }
+    textarea {
+        min-height: 100px;
+    }
+    button {
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+}
