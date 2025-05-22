@@ -87,4 +87,6 @@ if __name__ == '__main__':
     if not os.environ.get("GEMINI_API_KEY"):
         print("Warning: GEMINI_API_KEY environment variable is not set.")
         print("The /generate-audio endpoint will fail without it.")
-    app.run(debug=True)
+
+    port = int(os.environ.get("PORT", 5000))  # Railway用にPORTを取得
+    app.run(host="0.0.0.0", port=port, debug=True)
