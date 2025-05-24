@@ -29,19 +29,19 @@ def generate_audio():
     try:
         model = genai.GenerativeModel(model_name="gemini-2.5-flash-preview-tts")
         
-        # Using direct genai module attributes for speech and generation configuration.
+        # Using genai.protos for speech-related configuration objects.
         
-        # Define the speech configuration using direct genai attributes
-        speech_config = genai.SpeechConfig(
-            voice_config=genai.VoiceConfig(
-                prebuilt_voice_config=genai.PrebuiltVoiceConfig(
+        # Define the speech configuration using genai.protos
+        speech_config = genai.protos.SpeechConfig(
+            voice_config=genai.protos.VoiceConfig(
+                prebuilt_voice_config=genai.protos.PrebuiltVoiceConfig(
                     voice_name=voice_name_to_use
                 )
             )
         )
 
         # Define the main generation configuration including speech_config and response_modalities
-        # Using direct genai attributes.
+        # genai.GenerationConfig is used directly, while speech_config is a proto object.
         generation_config = genai.GenerationConfig(
             response_modalities=["AUDIO"],
             speech_config=speech_config
