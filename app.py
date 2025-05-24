@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_file
 import os
 import google.generativeai as genai
+from google.generativeai import types # <-- ADD THIS LINE
 import wave
 import io
 
@@ -28,24 +29,28 @@ def generate_audio():
     try:
         model = genai.GenerativeModel(model_name="gemini-2.5-flash-preview-tts")
         
-        # speech_config is now defined separately and passed to generate_content directly.
-        # GenerationConfig is made empty as it does not take speech_config in __init__.
-        speech_config_object = genai.protos.SpeechConfig(
-            voice_config=genai.protos.VoiceConfig(
-                prebuilt_voice_config=genai.protos.PrebuiltVoiceConfig(
-                    voice_name=voice_name_to_use,
+        # Reverting to use genai.types for configuration as per older SDK structure (google-generativeai==0.5.0)
+        # and documentation examples provided in the prompt.
+        
+        # Define the speech configuration using genai.types
+        speech_config = genai.types.SpeechConfig(
+            voice_config=genai.types.VoiceConfig(
+                prebuilt_voice_config=genai.types.PrebuiltVoiceConfig(
+                    voice_name=voice_name_to_use
                 )
             )
         )
-        
-        generation_config = genai.GenerationConfig() # Empty for now
+
+        # Define the main generation configuration including speech_config and response_modalities
+        # Using genai.types.GenerationConfig as indicated by documentation context for this SDK version.
+        generation_config = genai.types.GenerationConfig(
+            response_modalities=["AUDIO"],
+            speech_config=speech_config
+        )
 
         response = model.generate_content(
             contents=[text_to_synthesize],
-            generation_config=generation_config,
-            # Attempting to pass speech_config directly to generate_content.
-            # This will cause a TypeError if 'speech_config' is not a valid kwarg.
-            speech_config=speech_config_object, 
+            generation_config=generation_config
         )
         
         # Ensure the response has the expected structure
@@ -87,4 +92,6 @@ if __name__ == '__main__':
     if not os.environ.get("GEMINI_API_KEY"):
         print("Warning: GEMINI_API_KEY environment variable is not set.")
         print("The /generate-audio endpoint will fail without it.")
-    app.run(debug=True)
+    
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
