@@ -65,10 +65,11 @@ def test_generate_audio_success(mock_generative_model, client):
     mock_model_instance.generate_content.assert_called_once()
     args, kwargs = mock_model_instance.generate_content.call_args
     assert kwargs['contents'] == ["Hello world"]
-    # Check the arguments passed to generate_content, aligning with app.py's current structure
-    generation_config_arg = kwargs['generation_config']
-    assert generation_config_arg.response_modalities == ["AUDIO"]
-    assert generation_config_arg.speech_config.voice_config.prebuilt_voice_config.voice_name == "Kore"
+    assert 'generation_config' in kwargs # Checks that it's passed
+    # The actual generation_config object is now empty/default, so no response_modalities or speech_config within it.
+    
+    speech_config_arg = kwargs['speech_config'] # speech_config is now a direct kwarg
+    assert speech_config_arg.voice_config.prebuilt_voice_config.voice_name == "Kore"
 
 
 def test_generate_audio_no_text(client):
@@ -116,7 +117,8 @@ def test_generate_audio_specific_voice(mock_generative_model, client):
     })
     
     args, kwargs = mock_model_instance.generate_content.call_args
-    # Check the arguments passed to generate_content for the specific voice
-    generation_config_arg = kwargs['generation_config']
-    assert generation_config_arg.response_modalities == ["AUDIO"] # Should still be present
-    assert generation_config_arg.speech_config.voice_config.prebuilt_voice_config.voice_name == "Puck"
+    assert kwargs['contents'] == ["Hello from Puck"] 
+    assert 'generation_config' in kwargs # Checks that it's passed
+    
+    speech_config_arg = kwargs['speech_config'] # speech_config is now a direct kwarg
+    assert speech_config_arg.voice_config.prebuilt_voice_config.voice_name == "Puck"

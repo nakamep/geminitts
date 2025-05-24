@@ -29,9 +29,8 @@ def generate_audio():
     try:
         model = genai.GenerativeModel(model_name="gemini-2.5-flash-preview-tts")
         
-        # Using genai.protos for speech-related configuration objects.
-        
-        # Define the speech configuration using genai.protos
+        # Speech configuration using genai.protos, passed directly to generate_content.
+        # General generation settings (if any) go into genai.GenerationConfig.
         speech_config = genai.protos.SpeechConfig(
             voice_config=genai.protos.VoiceConfig(
                 prebuilt_voice_config=genai.protos.PrebuiltVoiceConfig(
@@ -40,16 +39,13 @@ def generate_audio():
             )
         )
 
-        # Define the main generation configuration including speech_config and response_modalities
-        # genai.GenerationConfig is used directly, while speech_config is a proto object.
-        generation_config = genai.GenerationConfig(
-            response_modalities=["AUDIO"],
-            speech_config=speech_config
-        )
+        # General generation settings (now empty, was causing errors with speech_config/response_modalities)
+        generation_config = genai.GenerationConfig()
 
         response = model.generate_content(
             contents=[text_to_synthesize],
-            generation_config=generation_config
+            generation_config=generation_config, # For general settings
+            speech_config=speech_config      # Pass speech_config directly
         )
         
         # Ensure the response has the expected structure
