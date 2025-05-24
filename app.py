@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_file
 import os
 import google.generativeai as genai
-from google.generativeai import types # <-- ADD THIS LINE
+# Removed: from google.generativeai import types
 import wave
 import io
 
@@ -29,21 +29,20 @@ def generate_audio():
     try:
         model = genai.GenerativeModel(model_name="gemini-2.5-flash-preview-tts")
         
-        # Using modern genai.types for speech and generation configuration,
-        # compatible with google-generativeai>=0.6.0.
+        # Using direct genai module attributes for speech and generation configuration.
         
-        # Define the speech configuration using genai.types
-        speech_config = genai.types.SpeechConfig(
-            voice_config=genai.types.VoiceConfig(
-                prebuilt_voice_config=genai.types.PrebuiltVoiceConfig(
+        # Define the speech configuration using direct genai attributes
+        speech_config = genai.SpeechConfig(
+            voice_config=genai.VoiceConfig(
+                prebuilt_voice_config=genai.PrebuiltVoiceConfig(
                     voice_name=voice_name_to_use
                 )
             )
         )
 
         # Define the main generation configuration including speech_config and response_modalities
-        # Using genai.types.GenerationConfig as indicated by documentation context for this SDK version.
-        generation_config = genai.types.GenerationConfig(
+        # Using direct genai attributes.
+        generation_config = genai.GenerationConfig(
             response_modalities=["AUDIO"],
             speech_config=speech_config
         )
