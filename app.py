@@ -29,8 +29,8 @@ def generate_audio():
     try:
         model = genai.GenerativeModel(model_name="gemini-2.5-flash-preview-tts")
         
-        # Reverting to use genai.types for configuration as per older SDK structure (google-generativeai==0.5.0)
-        # and documentation examples provided in the prompt.
+        # Using modern genai.types for speech and generation configuration,
+        # compatible with google-generativeai>=0.6.0.
         
         # Define the speech configuration using genai.types
         speech_config = genai.types.SpeechConfig(
@@ -92,7 +92,6 @@ if __name__ == '__main__':
     if not os.environ.get("GEMINI_API_KEY"):
         print("Warning: GEMINI_API_KEY environment variable is not set.")
         print("The /generate-audio endpoint will fail without it.")
-
-
-    port = int(os.environ.get("PORT", 5000))  # Railway用にPORTを取得
+    
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
