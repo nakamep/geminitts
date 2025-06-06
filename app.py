@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, Response
 import os
 from google import genai
 import wave
@@ -76,6 +76,61 @@ def generate_audio():
         return jsonify({"error": f"Failed to process audio data: {str(e)}"}), 500
 
     return send_file(wav_buffer, mimetype='audio/wav')
+
+
+@app.route('/stream-audio', methods=['POST'])
+def stream_audio():
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return jsonify({"error": "GEMINI_API_KEY not set"}), 500
+
+    data = request.get_json()
+    text_to_synthesize = data.get('text') if data else None
+    voice_name_to_use = data.get('voice_name', 'Kore') if data else 'Kore'
+
+    if not text_to_synthesize:
+        return jsonify({"error": "No text provided"}), 400
+
+    client = genai.Client(api_key=api_key)
+
+    try:
+        config = genai.types.GenerateContentConfig(
+            response_modalities=["AUDIO"],
+            speech_config=genai.types.SpeechConfig(
+                voice_config=genai.types.VoiceConfig(
+                    prebuilt_voice_config=genai.types.PrebuiltVoiceConfig(
+                        voice_name=voice_name_to_use
+                    )
+                )
+            ),
+        )
+
+        stream = client.models.generate_content_stream(
+            model="gemini-2.5-flash-preview-tts",
+            contents=text_to_synthesize,
+            config=config,
+        )
+
+        audio_chunks = []
+        for chunk in stream:
+            if (
+                chunk.candidates
+                and chunk.candidates[0].content
+                and chunk.candidates[0].content.parts
+            ):
+                part = chunk.candidates[0].content.parts[0]
+                if part.inline_data and part.inline_data.data:
+                    audio_chunks.append(part.inline_data.data)
+
+        audio_data_pcm = b"".join(audio_chunks)
+
+    except Exception as e:
+        print(f"Error during Gemini API stream: {e}")
+        if "API key not valid" in str(e) or "PERMISSION_DENIED" in str(e):
+            return jsonify({"error": f"TTS generation failed: Invalid API Key or insufficient permissions. Details: {str(e)}"}), 401
+        return jsonify({"error": f"TTS generation failed: {str(e)}"}), 500
+
+    return Response(audio_data_pcm, mimetype='application/octet-stream')
 
 
 @app.errorhandler(Exception)
