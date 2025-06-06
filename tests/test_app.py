@@ -120,3 +120,21 @@ def test_generate_audio_specific_voice(mock_generative_model, client):
     generation_config_arg = kwargs['generation_config']
     assert generation_config_arg.response_modalities == ["AUDIO"] # Should still be present
     assert generation_config_arg.speech_config.voice_config.prebuilt_voice_config.voice_name == "Puck"
+
+@patch('app.genai.GenerativeModel')
+@patch.dict(os.environ, {"GEMINI_API_KEY": "test_api_key"})
+def test_generate_audio_default_voice(mock_generative_model, client):
+    '''Test audio generation defaults to Kore when no voice provided.'''
+    mock_model_instance = MagicMock()
+    mock_response = MagicMock()
+    mock_part = MagicMock()
+    mock_part.inline_data.data = b"dummy_pcm_audio_data"
+    mock_response.candidates = [MagicMock(content=MagicMock(parts=[mock_part]))]
+    mock_model_instance.generate_content.return_value = mock_response
+    mock_generative_model.return_value = mock_model_instance
+
+    client.post('/generate-audio', json={"text": "sample"})
+
+    args, kwargs = mock_model_instance.generate_content.call_args
+    generation_config_arg = kwargs['generation_config']
+    assert generation_config_arg.speech_config.voice_config.prebuilt_voice_config.voice_name == "Kore"
