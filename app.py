@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, jsonify, send_file
 import os
-import google.generativeai as genai
-# Removed: from google.generativeai import types
+from google import genai
 import wave
 import io
 from werkzeug.exceptions import HTTPException
@@ -18,7 +17,7 @@ def generate_audio():
     if not api_key:
         return jsonify({"error": "GEMINI_API_KEY not set"}), 500
 
-    genai.configure(api_key=api_key)
+    client = genai.Client(api_key=api_key)
 
     data = request.get_json()
     text_to_synthesize = data.get('text')
@@ -28,28 +27,22 @@ def generate_audio():
         return jsonify({"error": "No text provided"}), 400
 
     try:
-        model = genai.GenerativeModel(model_name="gemini-2.5-flash-preview-tts")
-        
-        # Using genai.protos for speech-related configuration objects.
-        
-        # Define the speech configuration using genai.protos
-        speech_config = genai.protos.SpeechConfig(
-            voice_config=genai.protos.VoiceConfig(
-                prebuilt_voice_config=genai.protos.PrebuiltVoiceConfig(
-                    voice_name=voice_name_to_use
+        # Configure the speech settings and response modality using the new SDK types
+        config = genai.types.GenerateContentConfig(
+            response_modalities=["AUDIO"],
+            speech_config=genai.types.SpeechConfig(
+                voice_config=genai.types.VoiceConfig(
+                    prebuilt_voice_config=genai.types.PrebuiltVoiceConfig(
+                        voice_name=voice_name_to_use
+                    )
                 )
-            )
+            ),
         )
 
-        # Define the main generation configuration including speech_config and desired response MIME type
-        # genai.GenerationConfig is used directly, while speech_config is a proto object.
-        generation_config = genai.GenerationConfig()
-        # Attach the speech configuration as an attribute so tests can inspect it
-        generation_config.speech_config = speech_config
-
-        response = model.generate_content(
-            contents=[text_to_synthesize],
-            generation_config=generation_config
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-preview-tts",
+            contents=text_to_synthesize,
+            config=config,
         )
         
         # Ensure the response has the expected structure
