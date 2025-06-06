@@ -61,7 +61,7 @@ def generate_audio():
         if not audio_part.inline_data or not audio_part.inline_data.data:
              raise ValueError("Audio data not found in Gemini API response")
 
-        audio_data_pcmb = audio_part.inline_data.data
+        audio_data_pcm = audio_part.inline_data.data
 
     except Exception as e:
         print(f"Error during Gemini API call: {e}")
@@ -77,7 +77,7 @@ def generate_audio():
             wf.setnchannels(1)  # Mono
             wf.setsampwidth(2)  # 16-bit PCM (2 bytes)
             wf.setframerate(24000)  # Gemini TTS sample rate
-            wf.writeframes(audio_data_pcmb)
+            wf.writeframes(audio_data_pcm)
         wav_buffer.seek(0)
     except Exception as e:
         print(f"Error during WAV processing: {e}")
