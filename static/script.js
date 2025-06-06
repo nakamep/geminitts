@@ -40,37 +40,36 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function sendDataToBackend(text, voiceName) {
-        fetch('/generate-audio', {
+        fetch('/stream-audio', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ "text": text, "voice_name": voiceName }), // Updated
         })
-        .then(response => {
-            if (response.ok) {
-                return response.blob();
+        .then(async response => {
+            if (!response.ok) {
+                try {
+                    const err = await response.clone().json();
+                    throw new Error(err.error || err.message || `Server error: ${response.status}`);
+                } catch {
+                    const msg = await response.text();
+                    throw new Error(msg.trim() || `Server error: ${response.status}`);
+                }
             }
-            // Try to parse JSON error response from backend first
-            return response.clone().json().then(err => {
-                throw new Error(err.error || err.message || `Server error: ${response.status}`);
-            }).catch(() => {
-                // Fallback: attempt to read plain text from the response
-                return response.text().then(text => {
-                    const msg = text.trim();
-                    if (msg) {
-                        throw new Error(msg);
-                    }
-                    throw new Error(`Server error: ${response.status}. Could not parse error details.`);
-                });
-            });
-        })
-        .then(blob => {
-            const audioUrl = URL.createObjectURL(blob);
+
+            const reader = response.body.getReader();
+            const chunks = [];
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                if (value) chunks.push(value);
+            }
+            const wavBlob = pcmChunksToWav(chunks, 24000);
+            const audioUrl = URL.createObjectURL(wavBlob);
             audioPlayer.src = audioUrl;
             audioPlayer.load();
-            messageArea.textContent = ""; // Clear message area on success
-            // audioPlayer.play(); // Optional: play audio automatically
+            messageArea.textContent = "";
         })
         .catch(error => {
             console.error("Error generating audio:", error);
@@ -80,5 +79,44 @@ document.addEventListener('DOMContentLoaded', () => {
         .finally(() => {
             generateButton.disabled = false; // Re-enable button
         });
+    }
+
+    function pcmChunksToWav(chunks, sampleRate) {
+        let totalLength = 0;
+        for (const c of chunks) {
+            totalLength += c.length;
+        }
+        const buffer = new ArrayBuffer(44 + totalLength);
+        const view = new DataView(buffer);
+        let offset = 0;
+
+        function writeString(s) {
+            for (let i = 0; i < s.length; i++) {
+                view.setUint8(offset++, s.charCodeAt(i));
+            }
+        }
+        function writeUint32(v) { view.setUint32(offset, v, true); offset += 4; }
+        function writeUint16(v) { view.setUint16(offset, v, true); offset += 2; }
+
+        writeString('RIFF');
+        writeUint32(36 + totalLength);
+        writeString('WAVE');
+        writeString('fmt ');
+        writeUint32(16);
+        writeUint16(1); // PCM
+        writeUint16(1); // Mono
+        writeUint32(sampleRate);
+        writeUint32(sampleRate * 2);
+        writeUint16(2);
+        writeUint16(16);
+        writeString('data');
+        writeUint32(totalLength);
+
+        for (const chunk of chunks) {
+            new Uint8Array(buffer, offset).set(chunk);
+            offset += chunk.length;
+        }
+
+        return new Blob([buffer], { type: 'audio/wav' });
     }
 });

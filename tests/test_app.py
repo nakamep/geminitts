@@ -158,3 +158,40 @@ def test_generate_audio_unhandled_exception(mock_client_class, mock_send_file, c
 
     assert response.status_code == 500
     assert response.json["error"].startswith("Unexpected server error: Send file error")
+
+
+@patch('app.genai.Client')
+@patch.dict(os.environ, {"GEMINI_API_KEY": "test_api_key"})
+def test_stream_audio_success(mock_client_class, client):
+    """Test streaming audio chunks are concatenated and returned."""
+    mock_client_instance = MagicMock()
+
+    chunk1 = MagicMock()
+    chunk1.data = b"foo"
+    chunk2 = MagicMock()
+    chunk2.data = b"bar"
+    mock_client_instance.models.generate_content_stream.return_value = iter([chunk1, chunk2])
+
+    mock_client_class.return_value = mock_client_instance
+
+    response = client.post('/stream-audio', json={"text": "Hello"})
+
+    assert response.status_code == 200
+    assert response.mimetype == 'application/octet-stream'
+    assert response.data == b"foobar"
+
+
+@patch.dict(os.environ, {"GEMINI_API_KEY": "test_api_key"})
+def test_stream_audio_no_text(client):
+    """Streaming endpoint should return 400 when no text provided."""
+    response = client.post('/stream-audio', json={})
+    assert response.status_code == 400
+    assert response.json == {"error": "No text provided"}
+
+
+@patch.dict(os.environ, {}, clear=True)
+def test_stream_audio_no_api_key(client):
+    """Streaming endpoint should error when API key missing."""
+    response = client.post('/stream-audio', json={"text": "Hello"})
+    assert response.status_code == 500
+    assert response.json == {"error": "GEMINI_API_KEY not set"}
