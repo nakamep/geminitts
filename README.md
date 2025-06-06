@@ -21,7 +21,7 @@
    ```bash
    python app.py
    ```
-4. ブラウザで `http://localhost:5000` を開き、テキストを入力して "Generate Audio" をクリックします。
+4. ブラウザでアプリを起動したURL (例: `https://your-app.example.com`) を開き、テキストを入力して 'Generate Audio' をクリックします。
 
 より詳しい情報は Gemini API ドキュメントの
 [Speech Generation](https://ai.google.dev/gemini-api/docs/speech-generation)
