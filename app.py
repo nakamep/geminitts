@@ -43,9 +43,7 @@ def generate_audio():
 
         # Define the main generation configuration including speech_config and desired response MIME type
         # genai.GenerationConfig is used directly, while speech_config is a proto object.
-        generation_config = genai.GenerationConfig(
-            response_mime_type="audio/wav"
-        )
+        generation_config = genai.GenerationConfig()
         # Attach the speech configuration as an attribute so tests can inspect it
         generation_config.speech_config = speech_config
 
