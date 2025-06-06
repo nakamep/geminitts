@@ -82,7 +82,7 @@ def test_generate_audio_no_text(client):
 def test_generate_audio_no_api_key(client):
     '''Test audio generation with no API key set.'''
     response = client.post('/generate-audio', json={"text": "Hello"})
-    assert response.status_code == 500 # Or 401 if you made that change
+    assert response.status_code == 500 # Response should be 500 when GEMINI_API_KEY is not set
     assert response.json == {"error": "GEMINI_API_KEY not set"}
     
 @patch('app.genai.GenerativeModel')
