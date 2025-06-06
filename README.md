@@ -1,9 +1,6 @@
 # geminitts
 
-このリポジトリは Google Gemini 2.5 Flash Preview Text-to-Speech (TTS) を利用した、
-シンプルな音声生成 UI を提供します。入力したテキストや SRT ファイルから
-音声を生成し、WAV 形式で再生します。
-
+このリポジトリは Google Gemini 2.5 Flash Preview Text-to-Speech (TTS) を利用した、シンプルな音声生成 UI を提供します。入力したテキストや SRT ファイルから音声を生成し、WAV 形式で再生します。
 ## 必要条件
 - Python 3.11 以上
 - Gemini API の API キー（`GEMINI_API_KEY` 環境変数に設定）
