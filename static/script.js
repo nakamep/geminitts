@@ -50,15 +50,20 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(response => {
             if (response.ok) {
                 return response.blob();
-            } else {
-                // Try to parse JSON error response from backend
-                return response.json().then(err => {
-                    throw new Error(err.error || `Server error: ${response.status}`);
-                }).catch(parseError => {
-                    // Fallback if parsing JSON fails or it's not a JSON error
+            }
+            // Try to parse JSON error response from backend first
+            return response.clone().json().then(err => {
+                throw new Error(err.error || err.message || `Server error: ${response.status}`);
+            }).catch(() => {
+                // Fallback: attempt to read plain text from the response
+                return response.text().then(text => {
+                    const msg = text.trim();
+                    if (msg) {
+                        throw new Error(msg);
+                    }
                     throw new Error(`Server error: ${response.status}. Could not parse error details.`);
                 });
-            }
+            });
         })
         .then(blob => {
             const audioUrl = URL.createObjectURL(blob);

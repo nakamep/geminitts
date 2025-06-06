@@ -4,6 +4,7 @@ import google.generativeai as genai
 # Removed: from google.generativeai import types
 import wave
 import io
+from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__)
 
@@ -84,6 +85,18 @@ def generate_audio():
         return jsonify({"error": f"Failed to process audio data: {str(e)}"}), 500
 
     return send_file(wav_buffer, mimetype='audio/wav')
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(e):
+    """Return JSON for any unhandled server errors."""
+    if isinstance(e, HTTPException):
+        code = e.code
+        description = e.description
+    else:
+        code = 500
+        description = str(e)
+    return jsonify({"error": f"Unexpected server error: {description}"}), code
 
 if __name__ == '__main__':
     # Note: For production, use a proper WSGI server.

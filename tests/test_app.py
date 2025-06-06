@@ -138,3 +138,22 @@ def test_generate_audio_default_voice(mock_generative_model, client):
     args, kwargs = mock_model_instance.generate_content.call_args
     generation_config_arg = kwargs['generation_config']
     assert generation_config_arg.speech_config.voice_config.prebuilt_voice_config.voice_name == "Kore"
+
+
+@patch('app.send_file', side_effect=Exception("Send file error"))
+@patch('app.genai.GenerativeModel')
+@patch.dict(os.environ, {"GEMINI_API_KEY": "test_api_key"})
+def test_generate_audio_unhandled_exception(mock_generative_model, mock_send_file, client):
+    '''Ensure unhandled exceptions return JSON error responses.'''
+    mock_model_instance = MagicMock()
+    mock_response = MagicMock()
+    mock_part = MagicMock()
+    mock_part.inline_data.data = b"dummy_pcm_audio_data"
+    mock_response.candidates = [MagicMock(content=MagicMock(parts=[mock_part]))]
+    mock_model_instance.generate_content.return_value = mock_response
+    mock_generative_model.return_value = mock_model_instance
+
+    response = client.post('/generate-audio', json={"text": "Hello"})
+
+    assert response.status_code == 500
+    assert response.json["error"].startswith("Unexpected server error: Send file error")
