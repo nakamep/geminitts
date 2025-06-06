@@ -1,8 +1,6 @@
-from flask import Flask, render_template, request, jsonify, send_file, Response
+from flask import Flask, render_template, request, jsonify, Response
 import os
 from google import genai
-import wave
-import io
 from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__)
@@ -21,13 +19,12 @@ def generate_audio():
 
     data = request.get_json()
     text_to_synthesize = data.get('text')
-    voice_name_to_use = data.get('voice_name', 'Kore') # Default to 'Kore'
+    voice_name_to_use = data.get('voice_name', 'Kore')
 
     if not text_to_synthesize:
         return jsonify({"error": "No text provided"}), 400
 
     try:
-        # Configure the speech settings and response modality using the new SDK types
         config = genai.types.GenerateContentConfig(
             response_modalities=["AUDIO"],
             speech_config=genai.types.SpeechConfig(
@@ -39,43 +36,30 @@ def generate_audio():
             ),
         )
 
-        response = client.models.generate_content(
+        gen_stream = client.models.generate_content_stream(
             model="gemini-2.5-flash-preview-tts",
             contents=text_to_synthesize,
             config=config,
         )
-        
-        # Ensure the response has the expected structure
-        if not response.candidates or not response.candidates[0].content or not response.candidates[0].content.parts:
-            raise ValueError("Unexpected response structure from Gemini API")
 
-        audio_part = response.candidates[0].content.parts[0]
-        if not audio_part.inline_data or not audio_part.inline_data.data:
-             raise ValueError("Audio data not found in Gemini API response")
-
-        audio_data_pcm = audio_part.inline_data.data
+        def generate():
+            for chunk in gen_stream:
+                if (
+                    chunk.candidates
+                    and chunk.candidates[0].content
+                    and chunk.candidates[0].content.parts
+                ):
+                    part = chunk.candidates[0].content.parts[0]
+                    if part.inline_data and part.inline_data.data:
+                        yield part.inline_data.data
 
     except Exception as e:
         print(f"Error during Gemini API call: {e}")
-        # Check for specific authentication errors if possible, though genai SDK might abstract this
-        if "API key not valid" in str(e) or "PERMISSION_DENIED" in str(e): # Heuristic check
+        if "API key not valid" in str(e) or "PERMISSION_DENIED" in str(e):
             return jsonify({"error": f"TTS generation failed: Invalid API Key or insufficient permissions. Details: {str(e)}"}), 401
         return jsonify({"error": f"TTS generation failed: {str(e)}"}), 500
 
-    # Save PCM data to a WAV file in memory
-    wav_buffer = io.BytesIO()
-    try:
-        with wave.open(wav_buffer, "wb") as wf:
-            wf.setnchannels(1)  # Mono
-            wf.setsampwidth(2)  # 16-bit PCM (2 bytes)
-            wf.setframerate(24000)  # Gemini TTS sample rate
-            wf.writeframes(audio_data_pcm)
-        wav_buffer.seek(0)
-    except Exception as e:
-        print(f"Error during WAV processing: {e}")
-        return jsonify({"error": f"Failed to process audio data: {str(e)}"}), 500
-
-    return send_file(wav_buffer, mimetype='audio/wav')
+    return Response(generate(), mimetype='application/octet-stream')
 
 
 @app.route('/stream-audio', methods=['POST'])
@@ -105,24 +89,22 @@ def stream_audio():
             ),
         )
 
-        stream = client.models.generate_content_stream(
+        gen_stream = client.models.generate_content_stream(
             model="gemini-2.5-flash-preview-tts",
             contents=text_to_synthesize,
             config=config,
         )
 
-        audio_chunks = []
-        for chunk in stream:
-            if (
-                chunk.candidates
-                and chunk.candidates[0].content
-                and chunk.candidates[0].content.parts
-            ):
-                part = chunk.candidates[0].content.parts[0]
-                if part.inline_data and part.inline_data.data:
-                    audio_chunks.append(part.inline_data.data)
-
-        audio_data_pcm = b"".join(audio_chunks)
+        def generate():
+            for chunk in gen_stream:
+                if (
+                    chunk.candidates
+                    and chunk.candidates[0].content
+                    and chunk.candidates[0].content.parts
+                ):
+                    part = chunk.candidates[0].content.parts[0]
+                    if part.inline_data and part.inline_data.data:
+                        yield part.inline_data.data
 
     except Exception as e:
         print(f"Error during Gemini API stream: {e}")
@@ -130,7 +112,7 @@ def stream_audio():
             return jsonify({"error": f"TTS generation failed: Invalid API Key or insufficient permissions. Details: {str(e)}"}), 401
         return jsonify({"error": f"TTS generation failed: {str(e)}"}), 500
 
-    return Response(audio_data_pcm, mimetype='application/octet-stream')
+    return Response(generate(), mimetype='application/octet-stream')
 
 
 @app.errorhandler(Exception)
