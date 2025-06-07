@@ -18,12 +18,7 @@
    ```bash
    python app.py
    ```
-4. ブラウザでアプリを起動したURL (例: `https://your-app.example.com`) を開き、テキストを入力して 'Generate Audio' をクリックします。
-5. `stream_play.py` を実行すると、Gemini からの音声データを受信し次第スピーカーへ出力します。
-   ```bash
-   python stream_play.py "Hello World"
-   ```
-
+4. ブラウザでアプリを起動したURL (例: `https://your-app.example.com`) を開き、テキストを入力して 'Generate Audio' をクリックします。音声は Web Audio API により即時再生されます。
 
 より詳しい情報は Gemini API ドキュメントの
 [Speech Generation](https://ai.google.dev/gemini-api/docs/speech-generation)
