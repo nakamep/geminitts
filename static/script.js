@@ -2,22 +2,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const textInput = document.getElementById('text-input');
     const srtFileInput = document.getElementById('srt-file-input');
     const generateButton = document.getElementById('generate-button');
-    const audioPlayer = document.getElementById('audio-player');
-    const voiceSelect = document.getElementById('voice-select'); // New
-    const messageArea = document.getElementById('message-area'); // New
+    const voiceSelect = document.getElementById('voice-select');
+    const messageArea = document.getElementById('message-area');
 
     generateButton.addEventListener('click', (event) => {
         event.preventDefault();
 
         const textValue = textInput.value.trim();
         const srtFile = srtFileInput.files[0];
-        const selectedVoice = voiceSelect.value; // New
+        const selectedVoice = voiceSelect.value;
         let textToSynthesize = null;
 
-        // Loading state
         generateButton.disabled = true;
         messageArea.textContent = "Generating audio, please wait...";
-        audioPlayer.src = ''; // Clear previous audio
 
         if (textValue) {
             textToSynthesize = textValue;
@@ -40,45 +37,75 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function sendDataToBackend(text, voiceName) {
-        fetch('/generate-audio', {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)({sampleRate: 24000});
+        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        let queue = [];
+        let leftover = new Uint8Array(0);
+
+        processor.onaudioprocess = (e) => {
+            const out = e.outputBuffer.getChannelData(0);
+            for (let i = 0; i < out.length; i++) {
+                if (queue.length) {
+                    out[i] = queue.shift() / 32768;
+                } else {
+                    out[i] = 0;
+                }
+            }
+        };
+
+        processor.connect(audioCtx.destination);
+
+        fetch('/stream-audio', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ "text": text, "voice_name": voiceName }), // Updated
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ text: text, voice_name: voiceName })
         })
         .then(response => {
-            if (response.ok) {
-                return response.blob();
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.error || `Server error: ${response.status}`); });
             }
-            // Try to parse JSON error response from backend first
-            return response.clone().json().then(err => {
-                throw new Error(err.error || err.message || `Server error: ${response.status}`);
-            }).catch(() => {
-                // Fallback: attempt to read plain text from the response
-                return response.text().then(text => {
-                    const msg = text.trim();
-                    if (msg) {
-                        throw new Error(msg);
+            const reader = response.body.getReader();
+            function read() {
+                reader.read().then(({ done, value }) => {
+                    if (done) {
+                        processor.disconnect();
+                        audioCtx.close();
+                        generateButton.disabled = false;
+                        messageArea.textContent = "";
+                        return;
                     }
-                    throw new Error(`Server error: ${response.status}. Could not parse error details.`);
+                    if (leftover.length) {
+                        const merged = new Uint8Array(leftover.length + value.length);
+                        merged.set(leftover);
+                        merged.set(value, leftover.length);
+                        value = merged;
+                        leftover = new Uint8Array(0);
+                    }
+                    if (value.length % 2 === 1) {
+                        leftover = value.slice(value.length - 1);
+                        value = value.slice(0, value.length - 1);
+                    }
+                    const view = new DataView(value.buffer, value.byteOffset, value.byteLength);
+                    for (let i = 0; i < value.length; i += 2) {
+                        queue.push(view.getInt16(i, true));
+                    }
+                    read();
+                }).catch(err => {
+                    console.error('Stream error', err);
+                    processor.disconnect();
+                    audioCtx.close();
+                    generateButton.disabled = false;
+                    messageArea.textContent = `Error: ${err.message}`;
                 });
-            });
-        })
-        .then(blob => {
-            const audioUrl = URL.createObjectURL(blob);
-            audioPlayer.src = audioUrl;
-            audioPlayer.load();
-            messageArea.textContent = ""; // Clear message area on success
-            // audioPlayer.play(); // Optional: play audio automatically
+            }
+            read();
         })
         .catch(error => {
-            console.error("Error generating audio:", error);
+            console.error('Error generating audio:', error);
             messageArea.textContent = `Error: ${error.message}`;
-            audioPlayer.src = ''; // Clear audio player on error
-        })
-        .finally(() => {
-            generateButton.disabled = false; // Re-enable button
+            processor.disconnect();
+            audioCtx.close();
+            generateButton.disabled = false;
         });
     }
 });

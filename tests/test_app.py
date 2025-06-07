@@ -1,7 +1,6 @@
 import pytest
 import os
 from unittest.mock import patch, MagicMock
-import io
 
 # Add the project root to the Python path for imports if necessary,
 # or ensure app can be imported. For simplicity, we assume app.py is in root.
@@ -39,14 +38,15 @@ def test_generate_audio_success(mock_client_class, client):
     '''Test successful audio generation.'''
     # Configure the mock
     mock_client_instance = MagicMock()
-    mock_response = MagicMock()
-    
-    # Mocking the nested structure for response.candidates[0].content.parts[0].inline_data.data
-    mock_part = MagicMock()
-    mock_part.inline_data.data = b"dummy_pcm_audio_data" # Simulate PCM binary data
-    mock_response.candidates = [MagicMock(content=MagicMock(parts=[mock_part]))]
 
-    mock_client_instance.models.generate_content.return_value = mock_response
+    def generator():
+        chunk = MagicMock()
+        part = MagicMock()
+        part.inline_data.data = b"dummy_pcm_audio_data"
+        chunk.candidates = [MagicMock(content=MagicMock(parts=[part]))]
+        yield chunk
+
+    mock_client_instance.models.generate_content_stream.return_value = generator()
     mock_client_class.return_value = mock_client_instance
 
     response = client.post('/generate-audio', json={
@@ -55,15 +55,15 @@ def test_generate_audio_success(mock_client_class, client):
     })
 
     assert response.status_code == 200
-    assert response.mimetype == 'audio/wav'
-    assert len(response.data) > 0 # Check that some data is returned (WAV header + dummy data)
+    assert response.mimetype == 'application/octet-stream'
+    assert response.data == b"dummy_pcm_audio_data"
     
     # Verify genai.Client was instantiated with the API key
     mock_client_class.assert_called_with(api_key="test_api_key")
     
     # Verify generate_content was called
-    mock_client_instance.models.generate_content.assert_called_once()
-    args, kwargs = mock_client_instance.models.generate_content.call_args
+    mock_client_instance.models.generate_content_stream.assert_called_once()
+    args, kwargs = mock_client_instance.models.generate_content_stream.call_args
     assert kwargs['model'] == "gemini-2.5-flash-preview-tts"
     assert kwargs['contents'] == "Hello world"
     # Check the arguments passed to generate_content, aligning with app.py's current structure
@@ -91,12 +91,12 @@ def test_generate_audio_no_api_key(client):
 def test_generate_audio_gemini_api_error(mock_client_class, client):
     '''Test audio generation when Gemini API call fails.'''
     mock_client_instance = MagicMock()
-    mock_client_instance.models.generate_content.side_effect = Exception("Simulated Gemini API Error")
+    mock_client_instance.models.generate_content_stream.side_effect = Exception("Simulated Gemini API Error")
     mock_client_class.return_value = mock_client_instance
 
     response = client.post('/generate-audio', json={"text": "Hello world"})
     
-    assert response.status_code == 500 # Or specific error code if you have one for this
+    assert response.status_code == 500
     assert "TTS generation failed: Simulated Gemini API Error" in response.json["error"]
     
 @patch('app.genai.Client')
@@ -108,7 +108,7 @@ def test_generate_audio_specific_voice(mock_client_class, client):
     mock_part = MagicMock()
     mock_part.inline_data.data = b"dummy_pcm_audio_data"
     mock_response.candidates = [MagicMock(content=MagicMock(parts=[mock_part]))]
-    mock_client_instance.models.generate_content.return_value = mock_response
+    mock_client_instance.models.generate_content_stream.return_value = iter([mock_response])
     mock_client_class.return_value = mock_client_instance
 
     client.post('/generate-audio', json={
@@ -116,8 +116,8 @@ def test_generate_audio_specific_voice(mock_client_class, client):
         "voice_name": "Puck"
     })
     
-    args, kwargs = mock_client_instance.models.generate_content.call_args
-    # Check the arguments passed to generate_content for the specific voice
+    args, kwargs = mock_client_instance.models.generate_content_stream.call_args
+    # Check the arguments passed to generate_content_stream for the specific voice
     config_arg = kwargs['config']
     assert config_arg.response_modalities == ["AUDIO"]  # Should request audio
     assert config_arg.speech_config.voice_config.prebuilt_voice_config.voice_name == "Puck"
@@ -131,33 +131,28 @@ def test_generate_audio_default_voice(mock_client_class, client):
     mock_part = MagicMock()
     mock_part.inline_data.data = b"dummy_pcm_audio_data"
     mock_response.candidates = [MagicMock(content=MagicMock(parts=[mock_part]))]
-    mock_client_instance.models.generate_content.return_value = mock_response
+    mock_client_instance.models.generate_content_stream.return_value = iter([mock_response])
     mock_client_class.return_value = mock_client_instance
 
     client.post('/generate-audio', json={"text": "sample"})
 
-    args, kwargs = mock_client_instance.models.generate_content.call_args
+    args, kwargs = mock_client_instance.models.generate_content_stream.call_args
     config_arg = kwargs['config']
     assert config_arg.speech_config.voice_config.prebuilt_voice_config.voice_name == "Kore"
 
 
-@patch('app.send_file', side_effect=Exception("Send file error"))
 @patch('app.genai.Client')
 @patch.dict(os.environ, {"GEMINI_API_KEY": "test_api_key"})
-def test_generate_audio_unhandled_exception(mock_client_class, mock_send_file, client):
+def test_generate_audio_unhandled_exception(mock_client_class, client):
     '''Ensure unhandled exceptions return JSON error responses.'''
     mock_client_instance = MagicMock()
-    mock_response = MagicMock()
-    mock_part = MagicMock()
-    mock_part.inline_data.data = b"dummy_pcm_audio_data"
-    mock_response.candidates = [MagicMock(content=MagicMock(parts=[mock_part]))]
-    mock_client_instance.models.generate_content.return_value = mock_response
+    mock_client_instance.models.generate_content_stream.side_effect = Exception("Send file error")
     mock_client_class.return_value = mock_client_instance
 
     response = client.post('/generate-audio', json={"text": "Hello"})
 
     assert response.status_code == 500
-    assert response.json["error"].startswith("Unexpected server error: Send file error")
+    assert response.json["error"].startswith("TTS generation failed: Send file error")
 
 
 @patch('app.genai.Client')
