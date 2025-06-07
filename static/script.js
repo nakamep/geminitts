@@ -2,7 +2,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const textInput = document.getElementById('text-input');
     const srtFileInput = document.getElementById('srt-file-input');
     const generateButton = document.getElementById('generate-button');
-    const audioPlayer = document.getElementById('audio-player');
     const voiceSelect = document.getElementById('voice-select');
     const messageArea = document.getElementById('message-area');
 
@@ -16,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         generateButton.disabled = true;
         messageArea.textContent = "Generating audio, please wait...";
-        audioPlayer.src = '';
 
         if (textValue) {
             textToSynthesize = textValue;
