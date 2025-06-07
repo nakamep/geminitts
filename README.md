@@ -10,6 +10,8 @@
    ```bash
    pip install -r requirements.txt
    ```
+   PyAudio は不要です。以前のバージョンに合わせて `pip install pyaudio` を実行して
+   いた場合、依存関係から取り除いてください。
 2. API キーの設定
    ```bash
    export GEMINI_API_KEY=YOUR_API_KEY
