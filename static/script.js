@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const processor = audioCtx.createScriptProcessor(4096, 1, 1);
     let queue = [];
     let leftover = new Uint8Array(0);
+    let streamEnded = false;
 
     processor.onaudioprocess = (e) => {
       const out = e.outputBuffer.getChannelData(0);
@@ -52,6 +53,12 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
           out[i] = 0;
         }
+      }
+      if (streamEnded && queue.length === 0) {
+        processor.disconnect();
+        audioCtx.close();
+        generateButton.disabled = false;
+        messageArea.textContent = "";
       }
     };
 
@@ -74,10 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .read()
             .then(({ done, value }) => {
               if (done) {
-                processor.disconnect();
-                audioCtx.close();
-                generateButton.disabled = false;
-                messageArea.textContent = "";
+                streamEnded = true;
                 return;
               }
               if (leftover.length) {

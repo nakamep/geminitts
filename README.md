@@ -10,8 +10,6 @@
    ```bash
    pip install -r requirements.txt
    ```
-   PyAudio は不要です。以前のバージョンに合わせて `pip install pyaudio` を実行して
-   いた場合、依存関係から取り除いてください。
 2. API キーの設定
    ```bash
    export GEMINI_API_KEY=YOUR_API_KEY
@@ -20,7 +18,7 @@
    ```bash
    python app.py
    ```
-4. ブラウザでアプリを起動したURL (例: `https://your-app.example.com`) を開き、テキストを入力して 'Generate Audio' をクリックします。音声は Web Audio API により即時再生されます。
+4. ブラウザでアプリを起動したURL (例: `https://your-app.example.com`) を開き、テキストを入力して 'Generate Audio' をクリックします。音声は Web Audio API により即時再生されます。ストリーム受信後もバッファに残った音声が最後まで再生されるよう処理されています。
 
 より詳しい情報は Gemini API ドキュメントの
 [Speech Generation](https://ai.google.dev/gemini-api/docs/speech-generation)
